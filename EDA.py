@@ -11,9 +11,9 @@ dates = np.unique(train['TweetAt'])
 def plot_calendar_heatmap(data, dates):
     temp = pd.DataFrame()
     temp['day'] = pd.to_datetime(data['TweetAt'],dayfirst=True)
-    temp['year'] = data['day'].dt.isocalendar().year
-    temp['week'] = data['day'].dt.isocalendar().week
-    temp['weekday'] = data['day'].dt.dayofweek
+    temp['year'] = temp['day'].dt.isocalendar().year
+    temp['week'] = temp['day'].dt.isocalendar().week
+    temp['weekday'] = temp['day'].dt.dayofweek
 
     # Group by year, week, and weekday and count the tweets
     daily_counts = temp.groupby(['year', 'week', 'weekday']).size()
