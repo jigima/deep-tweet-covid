@@ -40,6 +40,30 @@ def tokenize_and_cache_dataset(dataset, model_name, tokenizer, num_proc=4):
                       num_proc=num_proc,
                       cache_file_names=cache_files)
 
+def analyze_token_lengths(dataset, tokenizer, column_name="text"):
+    """Analyze token length distribution in dataset"""
+    lengths = []
+
+    # Process each example
+    for example in dataset["train"]:
+        tokens = tokenizer(example[column_name], truncation=False, padding=False)
+        lengths.append(len(tokens["input_ids"]))
+
+    # Calculate statistics
+    lengths_array = np.array(lengths)
+    print(f"Mean length: {lengths_array.mean():.2f}")
+    print(f"Median length: {np.median(lengths_array):.2f}")
+    print(f"95th percentile: {np.percentile(lengths_array, 95):.2f}")
+    print(f"99th percentile: {np.percentile(lengths_array, 99):.2f}")
+    print(f"Max length: {lengths_array.max()}")
+
+    # Calculate truncation percentages
+    for length in [128, 256, 384, 512]:
+        truncated = sum(l > length for l in lengths)
+        print(f"Length {length}: {truncated/len(lengths)*100:.2f}% would be truncated")
+
+    return lengths_array
+
 #metrics computation
 import evaluate
 # Use sklearn for AUC calculation
@@ -252,32 +276,26 @@ def get_wandb_config(model_name):
     from datetime import datetime
     timestamp = datetime.now().strftime("%d%m_%H%M")
 
-    return {"project": f"sentiment-{model_id}-time:{timestamp}"}
+    return {"project": f"sentiment-{model_id}-time_{timestamp}"}
 
 
 from transformers.integrations import WandbCallback
 from typing import Dict, Any
 
-
+import os
 class CustomWandbCallback(WandbCallback):
-    def __init__(self, project_name=None):
-        super().__init__()
-        self.project_name = project_name
-
     def setup(self, args, state, model, **kwargs):
         if self._wandb is None:
             return
 
-        # Set project name if provided
-        if self.project_name:
-            self._wandb.run.project = self.project_name
-
         # Get trial parameters if available
         trial_params = getattr(args, "trial_params", {})
-        if trial_params:
-            # Include trial params in run name
-            lr = trial_params.get("learning_rate", "unknown")
-            bs = trial_params.get("per_device_train_batch_size", "unknown")
-            self._wandb.run.name = f"trial-lr{lr:.1e}-bs{bs}"
+        if trial_params and hasattr(self._wandb, 'run') and self._wandb.run is not None:
+            try:
+                lr = trial_params.get("learning_rate", "unknown")
+                bs = trial_params.get("per_device_train_batch_size", "unknown")
+                self._wandb.run.name = f"trial-lr{lr:.1e}-bs{bs}"
+            except:
+                print("Warning: Could not set W&B run name")
 
         super().setup(args, state, model, **kwargs)

@@ -4,6 +4,7 @@ from optuna.pruners import NopPruner
 import wandb
 from transformers import AutoTokenizer
 from train_utils import *
+import os
 
 
 
@@ -37,16 +38,27 @@ if __name__ == "__main__":
     })
 
     #model_name="cardiffnlp/twitter-roberta-base-sentiment"
-    model_name = "microsoft/deberta-v3-base"
+    model_name = "microsoft/deberta-v3-small"
     from transformers import DebertaV2Tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
     #tokenizer = DebertaV2Tokenizer.from_pretrained(model_name, use_fast=False)
-    tokenizer.model_max_length = 512  # Set the maximum length for tokenization
+    tokenizer.model_max_length = 150  # Set the maximum length for tokenization
+    # Analyze token lengths in the dataset
+    """token_lengths = analyze_token_lengths(dataset, tokenizer, column_name="OriginalTweet")
+
+    # If you want to visualize (requires matplotlib)
+    import matplotlib.pyplot as plt
+    plt.hist(token_lengths, bins=50)
+    plt.axvline(x=256, color='r', linestyle='--')
+    plt.savefig('token_lengths.png')
+    plt.show()"""
+
     # Tokenize the datasets
     tokenized_datasets=tokenize_and_cache_dataset(dataset, model_name, tokenizer)
 
     # Get wandb configuration
     wandb_config = get_wandb_config(model_name)
+    os.environ["WANDB_PROJECT"] = wandb_config["project"]
 
     training_args = TrainingArguments(
         output_dir="trainer",
@@ -65,7 +77,7 @@ if __name__ == "__main__":
         gradient_accumulation_steps=8,     # Accumulate gradients to simulate larger batch sizes
         gradient_checkpointing=True,       # Trade compute for memory savings
         dataloader_num_workers=4,          # Parallel data loading
-        optim="adamw_torch_fused"          # Use fused optimizer implementations
+        optim="adamw_torch_fused"
     )
 
     trainer = Trainer(
@@ -74,8 +86,7 @@ if __name__ == "__main__":
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["eval"],
         compute_metrics=compute_metrics,
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=8),
-                   CustomWandbCallback(project_name=wandb_config["project"])]
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=8)]
     )
 
     best_run = trainer.hyperparameter_search(
