@@ -135,6 +135,15 @@ def model_init_with_freezing(model_name,num_labels=5,trial=None):
             # Always keep the classifier head trainable
             for param in model.classifier.parameters():
                 param.requires_grad = True
+
+        frozen, trainable = count_frozen_layers(model)
+        print(f"[DEBUG] Freezing applied: {frozen} frozen, {trainable} trainable encoder layers")
+
+        # Save into trial attributes for later (DOES NOT WORK YET)
+        trial.set_user_attr("num_layers_finetune", num_layers)
+        trial.set_user_attr("layers_frozen", frozen)
+        trial.set_user_attr("layers_trainable", trainable)
+
     return model
 
 def create_model_init(model_name, num_labels=5):
@@ -159,23 +168,34 @@ from transformers import Trainer
 class OptunaTrainer(Trainer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._trial = None # Store the trial object
+        self._trial = None
 
     def set_trial(self, trial):
-        # This will be called by the hyperparameter search
+        # This will be called by hyperparameter search
         self._trial = trial
+        # Attach trial params to training args for callbacks
+        if hasattr(self.args, "trial_params") is False:
+            self.args.trial_params = {}
+        self.args.trial_params.update(trial.params)
 
-    def _get_model(self):
-        # Override model initialization to pass trial object
-        if self.model_init is None:
-            return super()._get_model()
-        model = self.model_init(self._trial)
-        return model
+
 
 # Then define your model_init function to accept the trial
 def model_init_for_optuna(trial, model_name, num_labels=5):
     return model_init_with_freezing(model_name, num_labels=num_labels, trial=trial)
 
+# experimental function to count frozen vs trainable layers
+def count_frozen_layers(model):
+    """Count how many encoder layers are frozen vs trainable."""
+    frozen, trainable = 0, 0
+    for i, layer in enumerate(model.roberta.encoder.layer):
+        # Check one parameter from each layer to infer its state
+        requires_grad = next(layer.parameters()).requires_grad
+        if requires_grad:
+            trainable += 1
+        else:
+            frozen += 1
+    return frozen, trainable
 
 # experimental function to estimate optimal maximum batch size based on GPU memory
 def estimate_optimal_batch_size(
@@ -312,6 +332,7 @@ def get_wandb_config(model_name):
 from transformers.integrations import WandbCallback
 from typing import Dict, Any
 
+#DOES NOT WORK YET
 import os
 class CustomWandbCallback(WandbCallback):
     def setup(self, args, state, model, **kwargs):
@@ -329,3 +350,21 @@ class CustomWandbCallback(WandbCallback):
                 print("Warning: Could not set W&B run name")
 
         super().setup(args, state, model, **kwargs)
+
+#DOES NOT WORK YET
+from transformers import TrainerCallback
+
+class LogNumLayersFinetuneCallback(TrainerCallback):
+    def on_trial_begin(self, args, state, control, trial=None, **kwargs):
+        if trial is not None and wandb.run is not None:
+            wandb.config.update(
+                {
+                    "num_layers_finetune": trial.params.get("num_layers_finetune"),
+                    "layers_frozen": trial.user_attrs.get("layers_frozen"),
+                    "layers_trainable": trial.user_attrs.get("layers_trainable"),
+                },
+                allow_val_change=True
+            )
+            print(f"[DEBUG] Logged to W&B: num_layers={trial.params.get('num_layers_finetune')}, "
+                  f"frozen={trial.user_attrs.get('layers_frozen')}, "
+                  f"trainable={trial.user_attrs.get('layers_trainable')}")

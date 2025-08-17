@@ -27,7 +27,7 @@ def hp_space(trial):
         "per_device_train_batch_size": trial.suggest_categorical("per_device_train_batch_size", [8,16,32]),
         "weight_decay": trial.suggest_float("weight_decay", 0.0, 0.3),
         "lr_scheduler_type": trial.suggest_categorical("lr_scheduler_type", ["linear", "cosine", "cosine_with_restarts"]),
-        "num_layers_finetune":  trial.suggest_categorical("num_layers", [4, 6, 8, 12]) #0 means all layers are trainable
+        "num_layers_finetune":  trial.suggest_categorical("num_layers_finetune", [4, 6, 8, 12]) #0 means all layers are trainable
     }
 
 from transformers import TrainingArguments, Trainer, EarlyStoppingCallback
@@ -53,14 +53,14 @@ if __name__ == "__main__":
     #tokenizer = DebertaV2Tokenizer.from_pretrained(model_name, use_fast=False)
     tokenizer.model_max_length = 200  # Set the maximum length for tokenization
     # Analyze token lengths in the dataset
-    token_lengths = analyze_token_lengths(dataset, tokenizer, column_name="OriginalTweet")
+    """token_lengths = analyze_token_lengths(dataset, tokenizer, column_name="OriginalTweet")
 
     # If you want to visualize (requires matplotlib)
     import matplotlib.pyplot as plt
     plt.hist(token_lengths, bins=50)
     plt.axvline(x=256, color='r', linestyle='--')
     plt.savefig('token_lengths.png')
-    plt.show()
+    plt.show()"""
 
     # Tokenize the datasets
     tokenized_datasets=tokenize_and_cache_dataset(dataset, model_name, tokenizer)
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     os.environ["WANDB_PROJECT"] = wandb_config["project"]
 
     training_args = TrainingArguments(
-        output_dir="trainer",
+        output_dir=f"trainer/{model_name.replace('/', '-')}",
         num_train_epochs=20,
         eval_strategy="epoch",
         save_strategy="epoch",
@@ -96,6 +96,7 @@ if __name__ == "__main__":
         eval_dataset=tokenized_datasets["eval"],
         compute_metrics=compute_metrics,
         callbacks=[EarlyStoppingCallback(early_stopping_patience=8)]
+
     )
 
     best_run = trainer.hyperparameter_search(
