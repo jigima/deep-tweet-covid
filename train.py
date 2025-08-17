@@ -1,12 +1,21 @@
 import numpy as np
-from datasets import load_dataset, DatasetDict
+from datasets import load_dataset, load_from_disk, DatasetDict
 from optuna.pruners import NopPruner
 import wandb
 from transformers import AutoTokenizer
 from train_utils import *
 import os
+import tempfile
 
+from train_utils import OptunaTrainer
 
+tempfile.tempdir = "D:/temp"
+os.environ["HF_HOME"] = "D:/huggingface_cache"
+#os.environ["TRANSFORMERS_CACHE"] = "D:/huggingface_cache/transformers"
+os.environ["HF_DATASETS_CACHE"] = "D:/huggingface_cache/datasets"
+os.environ["TMPDIR"] = "D:/temp"  # Create this folder if it doesn't exist
+os.environ["TEMP"] = "D:/temp"
+os.environ["TMP"] = "D:/temp"
 
 #this is the correct value but the attribute wasn't updated in the HF repository, so we set it manually
 
@@ -18,7 +27,7 @@ def hp_space(trial):
         "per_device_train_batch_size": trial.suggest_categorical("per_device_train_batch_size", [8,16,32]),
         "weight_decay": trial.suggest_float("weight_decay", 0.0, 0.3),
         "lr_scheduler_type": trial.suggest_categorical("lr_scheduler_type", ["linear", "cosine", "cosine_with_restarts"]),
-        #"num_layers_finetune":  trial.suggest_categorical("num_layers", [0 ,4, 6, 8, 12]) #0 means all layers are trainable
+        "num_layers_finetune":  trial.suggest_categorical("num_layers", [4, 6, 8, 12]) #0 means all layers are trainable
     }
 
 from transformers import TrainingArguments, Trainer, EarlyStoppingCallback
@@ -26,32 +35,32 @@ from transformers import TrainingArguments, Trainer, EarlyStoppingCallback
 #multiprocessing shield to avoid spawning multiple processes in the same script
 if __name__ == "__main__":
     # Load train and test datasets separately
-    train_dataset = load_dataset("csv", data_files="data/Corona_NLP_train_cleaned.csv")["train"]
+    train_dataset = load_from_disk("data/train_dataset")
     #test_dataset = load_dataset("csv", data_files="data/Corona_NLP_test_cleaned.csv")["train"]
 
     # Split train into train/eval (e.g., 70% train, 30% eval)
-    split = train_dataset.train_test_split(test_size=0.3, seed=42)
+    split = train_dataset.train_test_split(test_size=0.3, seed=42,stratify_by_column="SentimentLabel")
     # Combine into a DatasetDict
     dataset = DatasetDict({
         "train": split["train"],
         "eval": split["test"]
     })
 
-    #model_name="cardiffnlp/twitter-roberta-base-sentiment"
-    model_name = "microsoft/deberta-v3-small"
+    model_name="cardiffnlp/twitter-roberta-base-sentiment"
+    #model_name = "microsoft/deberta-v3-small"
     from transformers import DebertaV2Tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     #tokenizer = DebertaV2Tokenizer.from_pretrained(model_name, use_fast=False)
-    tokenizer.model_max_length = 150  # Set the maximum length for tokenization
+    tokenizer.model_max_length = 200  # Set the maximum length for tokenization
     # Analyze token lengths in the dataset
-    """token_lengths = analyze_token_lengths(dataset, tokenizer, column_name="OriginalTweet")
+    token_lengths = analyze_token_lengths(dataset, tokenizer, column_name="OriginalTweet")
 
     # If you want to visualize (requires matplotlib)
     import matplotlib.pyplot as plt
     plt.hist(token_lengths, bins=50)
     plt.axvline(x=256, color='r', linestyle='--')
     plt.savefig('token_lengths.png')
-    plt.show()"""
+    plt.show()
 
     # Tokenize the datasets
     tokenized_datasets=tokenize_and_cache_dataset(dataset, model_name, tokenizer)
@@ -80,8 +89,8 @@ if __name__ == "__main__":
         optim="adamw_torch_fused"
     )
 
-    trainer = Trainer(
-        model_init=create_model_init(model_name, num_labels=5),
+    trainer = OptunaTrainer(
+        model_init=lambda trial: model_init_for_optuna(trial, model_name="cardiffnlp/twitter-roberta-base-sentiment"),
         args=training_args,
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["eval"],

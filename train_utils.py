@@ -147,6 +147,36 @@ def create_model_init(model_name, num_labels=5):
         )
     return _model_init
 
+def create_model_init_with_freezing(model_name, num_labels=5, trial=None):
+    """Creates a model_init function that allows layer freezing during hyperparameter search."""
+    def _model_init():
+        return model_init_with_freezing(model_name, num_labels, trial)
+    return _model_init
+
+#create a custom Trainer class that passes trial to model_init
+from transformers import Trainer
+
+class OptunaTrainer(Trainer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._trial = None # Store the trial object
+
+    def set_trial(self, trial):
+        # This will be called by the hyperparameter search
+        self._trial = trial
+
+    def _get_model(self):
+        # Override model initialization to pass trial object
+        if self.model_init is None:
+            return super()._get_model()
+        model = self.model_init(self._trial)
+        return model
+
+# Then define your model_init function to accept the trial
+def model_init_for_optuna(trial, model_name, num_labels=5):
+    return model_init_with_freezing(model_name, num_labels=num_labels, trial=trial)
+
+
 # experimental function to estimate optimal maximum batch size based on GPU memory
 def estimate_optimal_batch_size(
     model_name="cardiffnlp/twitter-roberta-base-sentiment",
