@@ -23,7 +23,7 @@ DATA_FILE = Path("data/train_dataset")# Hugging Face dataset saved with load_fro
 TEXT_COLUMN = "OriginalTweet"         # column with input text
 LABEL_COLUMN = "SentimentLabel"       # column with int labels (0..num_labels-1)
 TEST_SIZE = 0.20                      # new eval split ratio
-SEED = 1236649                            # reproducibility
+SEED = 64                             # reproducibility
 LOW_LR = 1.0e-5                       # lower learning rate for careful fine-tuning
 WEIGHT_DECAY = 0.16090032972441884    # from best run
 BATCH_SIZE = 8                        # from best run
@@ -280,6 +280,7 @@ def run_procedure_comparison():
         model_name=config._name_or_path,
         tokenizer=tokenizer,
         num_proc=4,
+        caching=False
     )
     train_tok = tokenized["train"]
     eval_tok = tokenized["eval"]  # Used for finding thresholds

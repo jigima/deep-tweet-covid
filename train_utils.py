@@ -14,7 +14,7 @@ def tokenize_function(tokenizer,examples):
     result["labels"] = examples["SentimentLabel"]
     return result
 
-def tokenize_and_cache_dataset(dataset, model_name, tokenizer, num_proc=4,chaching=True):
+def tokenize_and_cache_dataset(dataset, model_name, tokenizer, num_proc=4,caching=True):
     """
     Tokenizes dataset and caches results with model-specific filenames.
 
@@ -23,6 +23,7 @@ def tokenize_and_cache_dataset(dataset, model_name, tokenizer, num_proc=4,chachi
         model_name: Name of the model (used for cache file naming)
         tokenizer: The tokenizer to use
         num_proc: Number of processes for parallel tokenization
+        caching: Whether to cache the tokenized dataset
     """
     # Create a model-specific identifier for cache files
     model_id = model_name.split('/')[-1]  # Extract last part of model path
@@ -36,7 +37,7 @@ def tokenize_and_cache_dataset(dataset, model_name, tokenizer, num_proc=4,chachi
     # Use a function that already has the tokenizer
     def _tokenize_function(examples):
         return tokenize_function(tokenizer, examples)
-    if chaching:
+    if caching:
         return dataset.map(_tokenize_function, batched=True,
                           num_proc=num_proc,
                           cache_file_names=cache_files)
