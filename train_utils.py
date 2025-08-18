@@ -14,7 +14,7 @@ def tokenize_function(tokenizer,examples):
     result["labels"] = examples["SentimentLabel"]
     return result
 
-def tokenize_and_cache_dataset(dataset, model_name, tokenizer, num_proc=4):
+def tokenize_and_cache_dataset(dataset, model_name, tokenizer, num_proc=4,chaching=True):
     """
     Tokenizes dataset and caches results with model-specific filenames.
 
@@ -36,10 +36,12 @@ def tokenize_and_cache_dataset(dataset, model_name, tokenizer, num_proc=4):
     # Use a function that already has the tokenizer
     def _tokenize_function(examples):
         return tokenize_function(tokenizer, examples)
-
-    return dataset.map(_tokenize_function, batched=True,
-                      num_proc=num_proc,
-                      cache_file_names=cache_files)
+    if chaching:
+        return dataset.map(_tokenize_function, batched=True,
+                          num_proc=num_proc,
+                          cache_file_names=cache_files)
+    else:
+        return dataset.map(_tokenize_function, batched=True,num_proc=num_proc)
 
 def analyze_token_lengths(dataset, tokenizer, column_name="text"):
     """Analyze token length distribution in dataset"""
