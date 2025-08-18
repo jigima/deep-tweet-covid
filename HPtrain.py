@@ -47,7 +47,7 @@ if __name__ == "__main__":
     })
 
     model_name="cardiffnlp/twitter-roberta-base-sentiment"
-    #model_name = "microsoft/deberta-v3-small"
+    #model_name = "microsoft/deberta-v3-base"
     from transformers import DebertaV2Tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     #tokenizer = DebertaV2Tokenizer.from_pretrained(model_name, use_fast=False)

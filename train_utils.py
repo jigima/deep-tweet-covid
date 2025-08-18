@@ -29,7 +29,8 @@ def tokenize_and_cache_dataset(dataset, model_name, tokenizer, num_proc=4):
 
     cache_files = {
         "train": f"cache/{model_id}_train_tokenized.arrow",
-        "eval": f"cache/{model_id}_eval_tokenized.arrow"
+        "eval": f"cache/{model_id}_eval_tokenized.arrow",
+        "test": f"cache/{model_id}_test_tokenized.arrow"
     }
 
     # Use a function that already has the tokenizer
