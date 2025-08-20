@@ -232,6 +232,7 @@ class OptunaTrainer(Trainer):
 # Then define your model_init function to accept the trial
 def model_init_for_optuna(trial, model_name, num_labels=5):
     return model_init_with_freezing(model_name, num_labels=num_labels, trial=trial)
+#usade in OptunaTrainer, model_init=lambda trial: model_init_for_optuna(trial, model_name="model_name")
 
 # experimental function to count frozen vs trainable layers
 def count_frozen_layers(model):
