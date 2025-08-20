@@ -1,7 +1,7 @@
 {
   "best_global_step": 2706,
   "best_metric": 0.8856103496799548,
-  "best_model_checkpoint": "trainer\\run-7\\checkpoint-2706",
+  "best_model_checkpoint": "trainer\\deberta-v3-base-sentiment-HP-search-best-run\\checkpoint-2706",
   "epoch": 6.0,
   "eval_steps": 500,
   "global_step": 2706,

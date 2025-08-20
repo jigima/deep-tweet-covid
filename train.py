@@ -20,8 +20,8 @@ os.environ["TMP"] = "D:/temp"
 # ----------------------------
 # Config: adjust these to your project
 # ----------------------------
-STATE_JSON = Path("trainer/run-7/checkpoint-2706/trainer_state.json")  # reads best checkpoint from here
-OUTPUT_DIR = Path("trainer/deberta-final-train")  # new run output directory
+STATE_JSON = Path("trainer/deberta-v3-base-sentiment-HP-search-best-run/checkpoint-2706/trainer_state.json")  # reads best checkpoint from here
+OUTPUT_DIR = Path("trainer/roberta-final-train")  # new run output directory
 DATA_FILE = Path("data/train_dataset")# Hugging Face dataset saved with load_from_disk
 model_name="cardiffnlp/twitter-roberta-base-sentiment"
 #model_name = "microsoft/deberta-v3-base"
@@ -48,7 +48,7 @@ if __name__ == "__main__":
         "eval": split["test"],
         "test": test_dataset
     })
-    
+
     # for RoBERTa use_fast=True,
     # for DeBERTa use_fast=False (experienced issues with fast tokenizer)
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)

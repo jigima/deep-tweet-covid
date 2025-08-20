@@ -17,13 +17,13 @@ from train_utils import *
 # ----------------------------
 # Config: adjust these to your project
 # ----------------------------
-STATE_JSON = Path("trainer/run-7/checkpoint-2706/trainer_state.json")  # reads best checkpoint from here
+STATE_JSON = Path("trainer/deberta-v3-base-sentiment-HP-search-best-run/checkpoint-2706/trainer_state.json")  # reads best checkpoint from here
 OUTPUT_DIR = Path("trainer/deberta-run-7-finetune")  # new run output directory
 DATA_FILE = Path("data/train_dataset")# Hugging Face dataset saved with load_from_disk
 TEXT_COLUMN = "OriginalTweet"         # column with input text
 LABEL_COLUMN = "SentimentLabel"       # column with int labels (0..num_labels-1)
-TEST_SIZE = 0.20                      # new eval split ratio
-SEED = 64                             # reproducibility
+TEST_SIZE = 0.10                      # new eval split ratio
+SEED = 42                             # reproducibility
 LOW_LR = 1.0e-5                       # lower learning rate for careful fine-tuning
 WEIGHT_DECAY = 0.16090032972441884    # from best run
 BATCH_SIZE = 8                        # from best run
@@ -260,7 +260,7 @@ def run_procedure_comparison():
     against the standard argmax method on a held-out test set.
     """
     # --- 1. Configuration & Setup ---
-    MODEL_CHECKPOINT = "trainer/deberta-run-7-finetune/checkpoint-17493"
+    MODEL_CHECKPOINT = "trainer/deberta-final-train"
     print(f"--- Starting Procedure Comparison using model: {MODEL_CHECKPOINT} ---")
     set_seed(SEED)
 
@@ -272,8 +272,9 @@ def run_procedure_comparison():
     raw = load_from_disk(str(DATA_FILE))
     split = raw.train_test_split(test_size=TEST_SIZE, seed=SEED, stratify_by_column=LABEL_COLUMN)
     ds = DatasetDict(train=split["train"], eval=split["test"])
-    split2 = ds['eval'].train_test_split(test_size=0.5, seed=SEED, stratify_by_column=LABEL_COLUMN)
-    ds = DatasetDict(train=split['train'], eval=split2['train'], test=split2['test'])
+    #split2 = ds['eval'].train_test_split(test_size=0.5, seed=SEED, stratify_by_column=LABEL_COLUMN)
+    test_set = load_from_disk("data/test_dataset")  # Load the test dataset
+    ds = DatasetDict(train=split['train'], eval=split['train'], test=test_set)
 
     tokenized = tokenize_and_cache_dataset(
         dataset=ds,
