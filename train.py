@@ -20,11 +20,12 @@ os.environ["TMP"] = "D:/temp"
 # ----------------------------
 # Config: adjust these to your project
 # ----------------------------
-STATE_JSON = Path("trainer/deberta-v3-base-sentiment-HP-search-best-run/checkpoint-2706/trainer_state.json")  # reads best checkpoint from here
+STATE_JSON = Path("trainer/cardiffnlp-twitter-roberta-base-sentiment-HP-search-best-run/checkpoint-7216/trainer_state.json")  # reads best checkpoint from here
 OUTPUT_DIR = Path("trainer/roberta-final-train")  # new run output directory
 DATA_FILE = Path("data/train_dataset")# Hugging Face dataset saved with load_from_disk
 model_name="cardiffnlp/twitter-roberta-base-sentiment"
 #model_name = "microsoft/deberta-v3-base"
+FAST_TOKEN=True  # for RoBERTa use_fast=True, for DeBERTa use_fast=False (experienced issues with fast tokenizer)
 # ----------------------------
 
 def read_best_hp_params(state_json_path: Path) -> str:
@@ -51,7 +52,7 @@ if __name__ == "__main__":
 
     # for RoBERTa use_fast=True,
     # for DeBERTa use_fast=False (experienced issues with fast tokenizer)
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=FAST_TOKEN)
     tokenizer.model_max_length = 200  # Set the maximum length for tokenization
     # Analyze token lengths in the dataset
     """token_lengths = analyze_token_lengths(dataset, tokenizer, column_name="OriginalTweet")
