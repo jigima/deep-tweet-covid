@@ -106,7 +106,52 @@ def compute_metrics(eval_pred):
     }
 
 #model intialization functions
-from transformers import AutoModelForSequenceClassification
+from transformers import AutoModelForSequenceClassification, AutoConfig
+from torch import nn
+
+#eperimental enhanced model classifier intialization function
+def model_init_enhanced(model_name, num_labels=5) -> PreTrainedModel:
+    """
+    Initializes a sequence classification model with an enhanced classifier head.
+
+    Args:
+        model_name (str): The name of the pre-trained model.
+        num_labels (int): Number of labels for classification.
+
+    Returns:
+        PreTrainedModel: A model instance with a custom classifier head.
+    """
+    model = AutoModelForSequenceClassification.from_pretrained(
+        pretrained_model_name_or_path=model_name,
+        num_labels=num_labels,
+        ignore_mismatched_sizes=True,
+    )
+
+    hidden = model.config.hidden_size
+    model.classifier = nn.Sequential(
+        nn.Linear(hidden, 256),
+        nn.ReLU(),
+        nn.Linear(256, 128),
+        nn.ReLU(),
+        nn.Linear(128, model.config.num_labels),
+    )
+
+    return model
+def create_model_init_enhanced(model_name, num_labels=5):
+    """
+    Creates a model initialization function for hyperparameter search.
+
+    Args:
+        model_name (str): The name of the pre-trained model.
+        num_labels (int): Number of labels for classification.
+
+    Returns:
+        function: A function that initializes the model with an enhanced classifier head.
+    """
+    def _model_init():
+        return model_init_enhanced(model_name, num_labels)
+
+    return _model_init
 
 def model_init(model_name,num_labels=5)->PreTrainedModel:
     # Return a new model instance for each trial
@@ -187,6 +232,7 @@ class OptunaTrainer(Trainer):
 # Then define your model_init function to accept the trial
 def model_init_for_optuna(trial, model_name, num_labels=5):
     return model_init_with_freezing(model_name, num_labels=num_labels, trial=trial)
+#usade in OptunaTrainer, model_init=lambda trial: model_init_for_optuna(trial, model_name="model_name")
 
 # experimental function to count frozen vs trainable layers
 def count_frozen_layers(model):
