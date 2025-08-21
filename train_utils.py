@@ -9,7 +9,7 @@ from transformers import AutoTokenizer, PreTrainedModel
 
 # Data tokenization function
 def tokenize_function(tokenizer,examples):
-    result = tokenizer(examples["OriginalTweet"], padding="max_length", truncation=True)
+    result = tokenizer(examples["OriginalTweet"], padding="max_length", truncation=True,max_length=200)
     # Add labels to the tokenized output
     result["labels"] = examples["SentimentLabel"]
     return result
