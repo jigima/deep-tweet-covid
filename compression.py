@@ -2,22 +2,28 @@ import os
 from pathlib import Path
 from transformers import AutoTokenizer, EarlyStoppingCallback
 
-from sklearn.metrics import f1_score, recall_score, roc_auc_score
+from sklearn.metrics import f1_score, recall_score, roc_auc_score, accuracy_score
 from datasets import load_from_disk, DatasetDict
 
 from train_utils import tokenize_and_cache_dataset
 
-MODEL_DIR = Path("trainer/roberta-final-train")           # A fine-tuned HF/Transformers model
-ONNX_DIR = Path("artifacts/roberta-seqcls-onnx")          # <- must be a different directory
-Q8_DIR = Path("artifacts/roberta-seqcls-onnx-int8")
-model_name="cardiffnlp/twitter-roberta-base-sentiment" #cardiffnlp/twitter-roberta-base-sentiment  #microsoft/deberta-v3-base
-FAST_TOKEN=True  # for RoBERTa use_fast=True, for DeBERTa use_fast=False (experienced issues with fast tokenizer)
+MODEL_DIR = Path("trainer/deberta-final-train")         # A fine-tuned HF/Transformers model SHOULD BE THE SAME BASE MODEL FOR ALL COMPRESSION SCRIPTS
+ONNX_DIR = Path("artifacts/deberta-seqcls-onnx")        # <- must be a different directory
+Q8_DIR = Path("artifacts/deberta-seqcls-onnx-int8")
+PRUNED_DIR = Path("artifacts/deberta-pruned")
+model_name="microsoft/deberta-v3-base" #cardiffnlp/twitter-roberta-base-sentiment  #microsoft/deberta-v3-base
+FAST_TOKEN=False                       # for RoBERTa use_fast=True, for DeBERTa use_fast=False (experienced issues with fast tokenizer)
+DATASET_PATH = Path("data/test_dataset")
 TEXT_COLUMN = "OriginalTweet"         # column with input text
 LABEL_COLUMN = "SentimentLabel"       # column with int labels (0..num_labels-1)
-QUANTIZATION=False         #enable/disable quantization script
-QUANTIZATION_EVAL=True    #enable/disable quantization evaluation script
-DISTILLATION=False       #enable/disable distillation script
-PRUNING=False         #enable/disable pruning script
+QUANTIZATION= False         #enable/disable quantization script
+QUANTIZATION_EVAL= False    #enable/disable quantization evaluation script
+DISTILLATION= False        #enable/disable distillation script
+PRUNING = False            #enable/disable pruning script
+PRUNE_AMOUNT = 0.3
+PRUNE_EVAL = False
+COUNTING = True
+COUNTING_DIR= Q8_DIR
 
 #----------------------------------------
 # Quantization script for exporting a model to ONNX and quantizing it to INT8
@@ -113,7 +119,7 @@ if QUANTIZATION_EVAL:
 
     if __name__ == "__main__":
         # Load the test dataset
-        test_dataset = load_from_disk("data/test_dataset")
+        test_dataset = load_from_disk(DATASET_PATH)
         # Evaluate the quantized ONNX model
         evaluate_onnx_model(Q8_DIR/"model_quantized.onnx",model_name, test_dataset,
                             text_column=TEXT_COLUMN, label_column=LABEL_COLUMN, batch_size=32)
@@ -268,3 +274,112 @@ if DISTILLATION:
         #evaluate the student model on the test set
         test_metrics = trainer.evaluate(test_with_teacher)
         print("Test set metrics:", test_metrics)
+
+
+#-----------------------------
+# Pruning script for reducing model size by removing less important weights
+#the pruning process involves identifying and removing weights that contribute less to the model's performance.
+#-----------------------------
+if PRUNING:
+    import torch.nn.utils.prune as prune
+    import torch
+    from transformers import AutoModelForSequenceClassification
+    def prune_model(model, amount=0.2):
+        for name, module in model.named_modules():
+            if isinstance(module, torch.nn.Linear):
+                prune.l1_unstructured(module, name="weight", amount=amount)
+                prune.remove(module, "weight")
+        return model
+
+
+    def main():
+        model = AutoModelForSequenceClassification.from_pretrained(MODEL_DIR)
+        model = prune_model(model, amount=PRUNE_AMOUNT)
+        PRUNED_DIR.mkdir(parents=True, exist_ok=True)
+        model.save_pretrained(PRUNED_DIR)
+        print(f"Pruned model saved to {PRUNED_DIR}")
+
+
+    if __name__ == "__main__":
+        main()
+
+if PRUNE_EVAL:
+    import torch
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer, Trainer
+    from datasets import load_from_disk, DatasetDict
+    from train_utils import tokenize_and_cache_dataset, compute_metrics
+
+    def main():
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = AutoModelForSequenceClassification.from_pretrained(PRUNED_DIR).to(device)
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR, use_fast=FAST_TOKEN)
+        test_dataset = load_from_disk(DATASET_PATH)
+
+        # Tokenize test set
+        tokenized = tokenize_and_cache_dataset(
+             DatasetDict({"test": test_dataset}),
+            model_name=model_name,
+            tokenizer=tokenizer,
+            num_proc=1,
+            caching=False
+        )["test"]
+
+        trainer = Trainer(
+            model=model,
+            compute_metrics=compute_metrics,
+        )
+
+        metrics = trainer.evaluate(tokenized)
+        print(metrics)
+
+
+    if __name__ == "__main__":
+        main()
+#-----------------------------
+# model size and parameter count
+#-----------------------------
+
+if COUNTING:
+    import torch
+    from transformers import AutoModelForSequenceClassification
+
+
+    def count_parameters(model):
+        total = sum(p.numel() for p in model.parameters())
+        nonzero = sum(torch.count_nonzero(p).item() for p in model.parameters())
+        return total, nonzero
+
+
+    def onnx_nonzero_weight_count(path):
+        import onnx
+        import onnx.numpy_helper
+
+        m = onnx.load(path)
+        return sum((onnx.numpy_helper.to_array(init) != 0).sum() for init in m.graph.initializer)
+
+    def get_model_size(model_dir):
+        total_size = sum(f.stat().st_size for f in model_dir.glob("*.safetensors"))
+        return total_size / (1024 * 1024)  # MB
+
+    def main():
+        if COUNTING_DIR == Q8_DIR or COUNTING_DIR == ONNX_DIR:
+            # Quantized ONNX model
+            if COUNTING_DIR == Q8_DIR:
+                onnx_path = COUNTING_DIR / "model_quantized.onnx"
+            else: onnx_path = COUNTING_DIR / "model.onnx"
+            onnx_sum = onnx_nonzero_weight_count(onnx_path)
+            size_mb = onnx_path.stat().st_size / (1024 * 1024)
+            print(f"ONNX quantized model file size: {size_mb:.2f} MB")
+            print(f"ONNX quantized model weight count: {onnx_sum:.2f}")
+        else:
+            # Standard Hugging Face model
+            model = AutoModelForSequenceClassification.from_pretrained(COUNTING_DIR)
+            total, nonzero = count_parameters(model)
+            size_mb = get_model_size(COUNTING_DIR)
+            print(f"Total parameters: {total:,}")
+            print(f"Non-zero parameters: {nonzero:,}")
+            print(f"Model file size: {size_mb:.2f} MB")
+
+
+    if __name__ == "__main__":
+        main()
