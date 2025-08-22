@@ -18,13 +18,13 @@ TEXT_COLUMN = "OriginalTweet"         # column with input text
 LABEL_COLUMN = "SentimentLabel"       # column with int labels (0..num_labels-1)
 QUANTIZATION= False         #enable/disable quantization script
 QUANTIZATION_EVAL= False    #enable/disable quantization evaluation script
-DISTILLATION= False        #enable/disable distillation script
+DISTILLATION= True        #enable/disable distillation script
 student_name= "distilbert/distilroberta-base"   # student model for distillation "microsoft/deberta-v3-small" "distilbert/distilroberta-base"
 PRUNING = False            #enable/disable pruning script
 PRUNE_AMOUNT = 0.3
 PRUNE_EVAL = False
-COUNTING = True
-COUNTING_DIR= Path("trainer/distilbert-distilroberta-base taught by cardiffnlp-twitter-roberta-base-sentiment-final train/checkpoint-4053")
+COUNTING = False
+COUNTING_DIR= Path()
 
 #----------------------------------------
 # Quantization script for exporting a model to ONNX and quantizing it to INT8
