@@ -229,12 +229,12 @@ class OptunaTrainer(Trainer):
 
 
 
-# Then define your model_init function to accept the trial
+# define your model_init function to accept the trial
 def model_init_for_optuna(trial, model_name, num_labels=5):
     return model_init_with_freezing(model_name, num_labels=num_labels, trial=trial)
 #usade in OptunaTrainer, model_init=lambda trial: model_init_for_optuna(trial, model_name="model_name")
 
-# experimental function to count frozen vs trainable layers
+# experimental function to count frozen vs trainable layers for debugging purposes
 def count_frozen_layers(model):
     """Count how many encoder layers are frozen vs trainable."""
     frozen, trainable = 0, 0
@@ -379,42 +379,8 @@ def get_wandb_config(model_name):
     return {"project": f"sentiment-{model_id}-time_{timestamp}"}
 
 
-from transformers.integrations import WandbCallback
-from typing import Dict, Any
 
-#DOES NOT WORK YET
-import os
-class CustomWandbCallback(WandbCallback):
-    def setup(self, args, state, model, **kwargs):
-        if self._wandb is None:
-            return
 
-        # Get trial parameters if available
-        trial_params = getattr(args, "trial_params", {})
-        if trial_params and hasattr(self._wandb, 'run') and self._wandb.run is not None:
-            try:
-                lr = trial_params.get("learning_rate", "unknown")
-                bs = trial_params.get("per_device_train_batch_size", "unknown")
-                self._wandb.run.name = f"trial-lr{lr:.1e}-bs{bs}"
-            except:
-                print("Warning: Could not set W&B run name")
 
-        super().setup(args, state, model, **kwargs)
 
-#DOES NOT WORK YET
-from transformers import TrainerCallback
 
-class LogNumLayersFinetuneCallback(TrainerCallback):
-    def on_trial_begin(self, args, state, control, trial=None, **kwargs):
-        if trial is not None and wandb.run is not None:
-            wandb.config.update(
-                {
-                    "num_layers_finetune": trial.params.get("num_layers_finetune"),
-                    "layers_frozen": trial.user_attrs.get("layers_frozen"),
-                    "layers_trainable": trial.user_attrs.get("layers_trainable"),
-                },
-                allow_val_change=True
-            )
-            print(f"[DEBUG] Logged to W&B: num_layers={trial.params.get('num_layers_finetune')}, "
-                  f"frozen={trial.user_attrs.get('layers_frozen')}, "
-                  f"trainable={trial.user_attrs.get('layers_trainable')}")

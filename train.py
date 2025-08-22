@@ -20,9 +20,8 @@ os.environ["TMP"] = "D:/temp"
 # ----------------------------
 # Config: adjust these to your project
 # ----------------------------
-STATE_JSON = Path("trainer/cardiffnlp-twitter-roberta-base-sentiment-HP-search-best-run/checkpoint-7216/trainer_state.json")  # reads best checkpoint from here
+STATE_JSON = Path("trainer/cardiffnlp-twitter-roberta-base-sentiment-HP-search-best-run/checkpoint-7216/trainer_state.json")  # reads best checkpoint from here, needs to be trainer_state.json file
 OUTPUT_DIR = Path("trainer/roberta-final-train")  # new run output directory
-DATA_FILE = Path("data/train_dataset")# Hugging Face dataset saved with load_from_disk
 model_name="cardiffnlp/twitter-roberta-base-sentiment"
 #model_name = "microsoft/deberta-v3-base"
 FAST_TOKEN=True  # for RoBERTa use_fast=True, for DeBERTa use_fast=False (experienced issues with fast tokenizer)

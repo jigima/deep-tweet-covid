@@ -9,12 +9,6 @@ import tempfile
 
 from train_utils import OptunaTrainer
 
-tempfile.tempdir = "D:/temp"
-os.environ["HF_HOME"] = "D:/huggingface_cache"
-os.environ["HF_DATASETS_CACHE"] = "D:/huggingface_cache/datasets"
-os.environ["TMPDIR"] = "D:/temp"  # Create this folder if it doesn't exist
-os.environ["TEMP"] = "D:/temp"
-os.environ["TMP"] = "D:/temp"
 
 
 # Define the hyperparameter search space
@@ -27,6 +21,9 @@ def hp_space(trial):
         "num_layers_finetune":  trial.suggest_categorical("num_layers_finetune", [4, 6, 8, 12]) #0 means all layers are trainable
     }
 
+model_name="cardiffnlp/twitter-roberta-base-sentiment"
+#model_name = "microsoft/deberta-v3-base"
+FAST_TOKEN=True  # for RoBERTa use_fast=True, for DeBERTa use_fast=False (experienced issues with fast tokenizer
 from transformers import TrainingArguments, Trainer, EarlyStoppingCallback
 
 #multiprocessing shield to avoid spawning multiple processes in the same script
@@ -43,10 +40,8 @@ if __name__ == "__main__":
         "eval": split["test"]
     })
 
-    model_name="cardiffnlp/twitter-roberta-base-sentiment"
-    #model_name = "microsoft/deberta-v3-base"
     from transformers import DebertaV2Tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=FAST_TOKEN)
     #tokenizer = DebertaV2Tokenizer.from_pretrained(model_name, use_fast=False)
     tokenizer.model_max_length = 200  # Set the maximum length for tokenization
     # Analyze token lengths in the dataset

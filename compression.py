@@ -12,7 +12,7 @@ ONNX_DIR = Path("artifacts/roberta-seqcls-onnx")        # <- must be a different
 Q8_DIR = Path("artifacts/roberta-seqcls-onnx-int8")
 PRUNED_DIR = Path("artifacts/roberta-pruned")
 model_name="cardiffnlp/twitter-roberta-base-sentiment" #cardiffnlp/twitter-roberta-base-sentiment  #microsoft/deberta-v3-base
-FAST_TOKEN=True              # for RoBERTa use_fast=True, for DeBERTa use_fast=False (experienced issues with fast tokenizer)
+FAST_TOKEN=True         # for RoBERTa use_fast=True, for DeBERTa use_fast=False (experienced issues with fast tokenizer)
 DATASET_PATH = Path("data/test_dataset")
 TEXT_COLUMN = "OriginalTweet"         # column with input text
 LABEL_COLUMN = "SentimentLabel"       # column with int labels (0..num_labels-1)
