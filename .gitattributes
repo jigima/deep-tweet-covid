@@ -1,2 +1,1 @@
 *.safetensors filter=lfs diff=lfs merge=lfs -text
-trainer/distilbert-distilroberta-base[[:space:]]taught[[:space:]]by[[:space:]]cardiffnlp-twitter-roberta-base-sentiment-final[[:space:]]train/checkpoint-4053/model.safetensors filter=lfs diff=lfs merge=lfs -text
