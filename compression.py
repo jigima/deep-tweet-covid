@@ -7,23 +7,24 @@ from datasets import load_from_disk, DatasetDict
 
 from train_utils import tokenize_and_cache_dataset
 
-MODEL_DIR = Path("trainer/deberta-final-train")         # A fine-tuned HF/Transformers model SHOULD BE THE SAME BASE MODEL FOR ALL COMPRESSION SCRIPTS
-ONNX_DIR = Path("artifacts/deberta-seqcls-onnx")        # <- must be a different directory
-Q8_DIR = Path("artifacts/deberta-seqcls-onnx-int8")
-PRUNED_DIR = Path("artifacts/deberta-pruned")
-model_name="microsoft/deberta-v3-base" #cardiffnlp/twitter-roberta-base-sentiment  #microsoft/deberta-v3-base
-FAST_TOKEN=False                       # for RoBERTa use_fast=True, for DeBERTa use_fast=False (experienced issues with fast tokenizer)
+MODEL_DIR = Path("trainer/roberta-final-train")         # A fine-tuned HF/Transformers model SHOULD BE THE SAME BASE MODEL FOR ALL COMPRESSION SCRIPTS
+ONNX_DIR = Path("artifacts/roberta-seqcls-onnx")        # <- must be a different directory
+Q8_DIR = Path("artifacts/roberta-seqcls-onnx-int8")
+PRUNED_DIR = Path("artifacts/roberta-pruned")
+model_name="cardiffnlp/twitter-roberta-base-sentiment" #cardiffnlp/twitter-roberta-base-sentiment  #microsoft/deberta-v3-base
+FAST_TOKEN=True              # for RoBERTa use_fast=True, for DeBERTa use_fast=False (experienced issues with fast tokenizer)
 DATASET_PATH = Path("data/test_dataset")
 TEXT_COLUMN = "OriginalTweet"         # column with input text
 LABEL_COLUMN = "SentimentLabel"       # column with int labels (0..num_labels-1)
 QUANTIZATION= False         #enable/disable quantization script
 QUANTIZATION_EVAL= False    #enable/disable quantization evaluation script
 DISTILLATION= False        #enable/disable distillation script
+student_name= "distilbert/distilroberta-base"   # student model for distillation "microsoft/deberta-v3-small" "distilbert/distilroberta-base"
 PRUNING = False            #enable/disable pruning script
 PRUNE_AMOUNT = 0.3
 PRUNE_EVAL = False
 COUNTING = True
-COUNTING_DIR= Q8_DIR
+COUNTING_DIR= Path("trainer/distilbert-distilroberta-base taught by cardiffnlp-twitter-roberta-base-sentiment-final train/checkpoint-4053")
 
 #----------------------------------------
 # Quantization script for exporting a model to ONNX and quantizing it to INT8
@@ -192,7 +193,7 @@ if DISTILLATION:
 
     # Prepare TrainingArguments and datasets as usual
     args = TrainingArguments(
-        output_dir=f"trainer/microsoft-deberta-v3-small taught by-{model_name.replace('/', '-')}-final train",
+        output_dir=f"trainer/{student_name.replace('/', '-')} taught by {model_name.replace('/', '-')}-final train",
         num_train_epochs=20,
         eval_strategy="epoch",
         save_strategy="epoch",
@@ -232,9 +233,9 @@ if DISTILLATION:
             "attention_mask": "teacher_attention_mask"
         })
 
-        student_tokenizer = AutoTokenizer.from_pretrained("microsoft/deberta-v3-small", use_fast=False)
+        student_tokenizer = AutoTokenizer.from_pretrained(student_name, use_fast=False)
         student_tokenizer.max_model_length = 200  # Set the maximum length for tokenization
-        st_tokenized = tokenize_and_cache_dataset(dataset, "microsoft/deberta-v3-small", student_tokenizer)
+        st_tokenized = tokenize_and_cache_dataset(dataset, student_name, student_tokenizer)
         # Add teacher inputs to student tokenized datasets
         train_with_teacher = st_tokenized["train"].add_column(
             "teacher_input_ids", tc_tokenized["train"]["teacher_input_ids"]
@@ -255,9 +256,9 @@ if DISTILLATION:
         # Load teacher and student models
         print("loading models...")
         teacher = AutoModelForSequenceClassification.from_pretrained(MODEL_DIR, num_labels=5)
-        student = AutoModelForSequenceClassification.from_pretrained("microsoft/deberta-v3-small", num_labels=5)
+        student = AutoModelForSequenceClassification.from_pretrained(student_name, num_labels=5)
 
-        os.environ["WANDB_PROJECT"] = f"deberta-v3-small-distillation taught by-{model_name.replace('/', '-')}-final train"
+        os.environ["WANDB_PROJECT"] = f"{student_name.replace('/', '-')}distillation taught by-{model_name.replace('/', '-')}-final train"
         # Use your tokenized datasets
         trainer = DistillationTrainer(
             model=student,
