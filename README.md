@@ -13,8 +13,8 @@ Token length distribution has been analyzed seperately and we have found that a 
 
 This repository contains a solution for COVID-19 tweet sentiment analysis using transformer models. The project includes:
 
-1. **Custom Training Pipeline** - Training, compression, and comparison using custom implementation
-2. **HuggingFace Training Pipeline** - Training, compression, and comparison using HuggingFace's native tools
+1. **HuggingFace Training Pipeline** - Training, compression, and comparison using HuggingFace's native tools
+2. **Custom Training Pipeline** - Training, compression, and comparison using custom implementation
 
 ## Quick Start
 
@@ -27,60 +27,6 @@ source .venv/bin/activate
 
 # Install required dependencies
 ```
-
-## Custom Training Pipeline
-
-### Training
-
-The custom training process uses **Weights & Biases (wandb)** for experiment tracking and **Optuna** for hyperparameter optimization.
-
-#### Training Configuration
-- **Models**: `cardiffnlp/twitter-roberta-base-sentiment` and `microsoft/deberta-v3-base`
-- **Trials**: 15 hyperparameter optimization trials
-- **Epochs**: 20 epochs per trial
-- **Optimization**: Optuna with wandb integration
-
-#### Running Training
-
-1. Open `train.ipynb` in Jupyter
-2. Set up your wandb credentials
-3. Comment/uncomment the appropriate model and tokenizer sections for RoBERTa or DeBERTa
-4. Run the notebook to start hyperparameter optimization
-
-#### Output
-Best models from each trial are saved in:
-```
-models/training/
-├── roberta_best_model_trial_{trial_num}.pt
-└── deberta_best_model_trial_{trial_num}.pt
-```
-
-### Compression
-
-Three compression techniques are applied to the best models:
-
-1. **Quantization** - Reduces model precision (FP32 → INT8/FP16)
-2. **Pruning** - Removes less important weights
-3. **Distillation** - Knowledge transfer to smaller models
-
-#### Running Compression
-
-Open `compress_roberta.ipynb` for RoBERTa or `compress_deberta.ipynb` for DeBERTa respectively.
-
-#### Output Structure
-```
-models/{model_name}-full/
-├── baseline/           # Original best model
-├── quantized/          # Quantized model
-├── pruned/            # Pruned model
-├── distilled/         # Distilled model
-├── comparison.csv     # Performance comparison
-└── wandb_export_*.csv # Training metrics
-```
-
-### Comparison
-
-Performance comparison is done by evaluating all compressed models on the evaluation dataset, computing metrics (accuracy, precision, recall, F1, AUC), and comparing results. Results are automatically generated and saved in `comparison.csv` files within each model directory.
 
 ## HuggingFace Training Pipeline
 
@@ -149,3 +95,56 @@ usage of this file isn't as streamlined like the other scripts, you will need to
 #### train diagnostics
 this is a utility script (`train diagnostics.py`) that can be used to check weather or not training has happened or not by looking the norm of the weights in certain layers.
 
+## Custom Training Pipeline
+
+### Training
+
+The custom training process uses **Weights & Biases (wandb)** for experiment tracking and **Optuna** for hyperparameter optimization.
+
+#### Training Configuration
+- **Models**: `cardiffnlp/twitter-roberta-base-sentiment` and `microsoft/deberta-v3-base`
+- **Trials**: 15 hyperparameter optimization trials
+- **Epochs**: 20 epochs per trial
+- **Optimization**: Optuna with wandb integration
+
+#### Running Training
+
+1. Open `train.ipynb` in Jupyter
+2. Set up your wandb credentials
+3. Comment/uncomment the appropriate model and tokenizer sections for RoBERTa or DeBERTa
+4. Run the notebook to start hyperparameter optimization
+
+#### Output
+Best models from each trial are saved in:
+```
+models/training/
+├── roberta_best_model_trial_{trial_num}.pt
+└── deberta_best_model_trial_{trial_num}.pt
+```
+
+### Compression
+
+Three compression techniques are applied to the best models:
+
+1. **Quantization** - Reduces model precision (FP32 → INT8/FP16)
+2. **Pruning** - Removes less important weights
+3. **Distillation** - Knowledge transfer to smaller models
+
+#### Running Compression
+
+Open `compress_roberta.ipynb` for RoBERTa or `compress_deberta.ipynb` for DeBERTa respectively.
+
+#### Output Structure
+```
+models/{model_name}-full/
+├── baseline/           # Original best model
+├── quantized/          # Quantized model
+├── pruned/            # Pruned model
+├── distilled/         # Distilled model
+├── comparison.csv     # Performance comparison
+└── wandb_export_*.csv # Training metrics
+```
+
+### Comparison
+
+Performance comparison is done by evaluating all compressed models on the evaluation dataset, computing metrics (accuracy, precision, recall, F1, AUC), and comparing results. Results are automatically generated and saved in `comparison.csv` files within each model directory.
