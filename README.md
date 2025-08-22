@@ -9,6 +9,8 @@ Using the [COVID-19 NLP Text Classification Dataset](https://www.kaggle.com/data
 The `EDA.py` script performs exploratory data analysis, producing various visualizations of the dataset in question.
 Token length distribution has been analyzed seperately and we have found that a length of 200 is enough to cover the entire dataset.
 
+See [`Classifying_Covid_19_Tweets_Sentiment_Using_NLP.pdf`](Classifying_Covid_19_Tweets_Sentiment_Using_NLP.pdf) for motivation, results, discussion and conclusions.
+
 ## Project Overview
 
 This repository contains a solution for COVID-19 tweet sentiment analysis using transformer models. The project includes:
